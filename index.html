@@ -19,13 +19,13 @@
 
         // TODO: Replace the following with your app's Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyBcQJpgDcGv1QaysQasMshEuFaz7fu8rjM",
-            authDomain: "coxtour-d57ba.firebaseapp.com",
-            databaseURL: "https://coxtour-d57ba-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "coxtour-d57ba",
-            storageBucket: "coxtour-d57ba.firebasestorage.app",
-            messagingSenderId: "303122887071",
-            appId: "1:303122887071:web:ee3db5e8d706bded034daa"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         // Initialize Firebase
@@ -686,13 +686,14 @@
                 return s;
             }, 0);
 
-            const netBalance = deposited - totalPaidOutByMember;
+            const settlementPaidTotal = state.settlementPayments.filter(sp => sp.payer === memberName).reduce((s, sp) => s + sp.amount, 0);
+            const settlementReceivedTotal = state.settlementPayments.filter(sp => sp.receiver === memberName).reduce((s, sp) => s + sp.amount, 0);
+
+            const netBalance = deposited - totalPaidOutByMember - settlementPaidTotal + settlementReceivedTotal;
 
             document.getElementById('reportMemberName').textContent = `${member.name} ${member.phone ? '(' + member.phone + ')' : ''}`;
             document.getElementById('reportDeposited').textContent = `৳${deposited.toLocaleString()}`;
             document.getElementById('reportPaid').textContent = `৳${totalPaidOutByMember.toFixed(2)}`;
-            document.getElementById('reportNet').textContent = `৳${netBalance.toFixed(2)}`;
-            document.getElementById('reportNet').className = `text-base font-extrabold ${netBalance >= 0 ? 'text-teal-700' : 'text-orange-600'}`;
 
             let categories = ['Food', 'Transport', 'Hotel', 'Sightseeing', 'Shopping', 'Others'];
             let catContainer = document.getElementById('reportCategoryContainer');
@@ -836,7 +837,10 @@
                     return s;
                 }, 0);
 
-                const netBalance = deposited - totalPaidOutByMember;
+                const settlementPaidTotal = state.settlementPayments.filter(sp => sp.payer === m.name).reduce((s, sp) => s + sp.amount, 0);
+                const settlementReceivedTotal = state.settlementPayments.filter(sp => sp.receiver === m.name).reduce((s, sp) => s + sp.amount, 0);
+
+                const netBalance = deposited - totalPaidOutByMember - settlementPaidTotal + settlementReceivedTotal;
                 const accordionId = `member-collapse-${idx}`;
 
                 let memberCatBreakdownHTML = '';
@@ -972,7 +976,7 @@
                 let memberDebts = {}; 
                 state.members.forEach(m => { memberDebts[m.name] = {}; });
 
-                state.expenses.forEach(ex => {
+                state.expenses.filter(Boolean).forEach(ex => {
                     let payer = ex.paidBy;
                     let payers = getExpensePayers(ex);
                     let amount = ex.amount;
@@ -987,7 +991,7 @@
                     });
                 });
 
-                state.settlementPayments.forEach(sp => {
+                state.settlementPayments.filter(Boolean).forEach(sp => {
                     if (memberDebts[sp.payer] && memberDebts[sp.payer][sp.receiver]) {
                         memberDebts[sp.payer][sp.receiver] -= sp.amount;
                         if (memberDebts[sp.payer][sp.receiver] <= 0) {
@@ -998,7 +1002,7 @@
 
                 let netPairDebts = {}; 
                 state.members.forEach(m1 => {
-                    state.members.rules?.forEach ? null : state.members.forEach(m2 => {
+                    state.members.forEach(m2 => {
                         if (m1.name !== m2.name) {
                             let d1 = (memberDebts[m1.name] && memberDebts[m1.name][m2.name]) || 0;
                             let d2 = (memberDebts[m2.name] && memberDebts[m2.name][m1.name]) || 0;
