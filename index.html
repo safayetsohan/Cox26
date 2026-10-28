@@ -289,13 +289,13 @@
                 </h2>
                 <form id="settlementPayForm" onsubmit="addSettlementPayment(event)" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Paid By (Payer)</label>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Paid By (Payer) [ধর শোধ করছে]</label>
                         <select id="settlePayer" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-slate-50/50 transition">
                             <option value="">-- Select Member --</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Paid To (Receiver)</label>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Paid To (Receiver) [যake শোধ করছে]</label>
                         <select id="settleReceiver" required class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-slate-50/50 transition">
                             <option value="">-- Select Member --</option>
                         </select>
@@ -404,7 +404,6 @@
                         state.expenses = data.expenses || [];
                         state.settlementPayments = data.settlementPayments || [];
                     } else {
-                        // Fallback to initial empty state or localstorage if needed
                         state.members = [];
                         state.funds = [];
                         state.expenses = [];
@@ -511,7 +510,6 @@
                     console.error("Error saving data to Firebase: ", error);
                 });
             } else {
-                // Fallback to localStorage if Firebase isn't initialized yet
                 localStorage.setItem('cox_tour_members_v6', JSON.stringify(state.members));
                 localStorage.setItem('cox_tour_funds_v6', JSON.stringify(state.funds));
                 localStorage.setItem('cox_tour_expenses_v6', JSON.stringify(state.expenses));
@@ -676,7 +674,10 @@
             const member = state.members.find(m => m.name === memberName);
             if (!member) return;
 
-            const deposited = state.funds.filter(f => f.member === memberName).reduce((s, f) => s + f.amount, 0);
+            // Updated: Deposited amount minus settlement payment given (dhar shodh korle deposit theke kome jabe)
+            let deposited = state.funds.filter(f => f.member === memberName).reduce((s, f) => s + f.amount, 0);
+            let settlementGiven = state.settlementPayments.filter(sp => sp.payer === memberName).reduce((s, sp) => s + sp.amount, 0);
+            let netDeposited = deposited - settlementGiven;
             
             const totalPaidOutByMember = state.expenses.reduce((s, ex) => {
                 const payers = getExpensePayers(ex);
@@ -686,13 +687,10 @@
                 return s;
             }, 0);
 
-            const settlementPaidTotal = state.settlementPayments.filter(sp => sp.payer === memberName).reduce((s, sp) => s + sp.amount, 0);
-            const settlementReceivedTotal = state.settlementPayments.filter(sp => sp.receiver === memberName).reduce((s, sp) => s + sp.amount, 0);
-
-            const netBalance = deposited - totalPaidOutByMember - settlementPaidTotal + settlementReceivedTotal;
+            const netBalance = netDeposited - totalPaidOutByMember;
 
             document.getElementById('reportMemberName').textContent = `${member.name} ${member.phone ? '(' + member.phone + ')' : ''}`;
-            document.getElementById('reportDeposited').textContent = `৳${deposited.toLocaleString()}`;
+            document.getElementById('reportDeposited').textContent = `৳${netDeposited.toLocaleString()}`;
             document.getElementById('reportPaid').textContent = `৳${totalPaidOutByMember.toFixed(2)}`;
 
             let categories = ['Food', 'Transport', 'Hotel', 'Sightseeing', 'Shopping', 'Others'];
@@ -827,7 +825,10 @@
             }
 
             state.members.forEach((m, idx) => {
+                // Updated calculation: Deposit minus settlement payment given
                 const deposited = state.funds.filter(f => f.member === m.name).reduce((s, f) => s + f.amount, 0);
+                const settlementGiven = state.settlementPayments.filter(sp => sp.payer === m.name).reduce((s, sp) => s + sp.amount, 0);
+                const netDeposited = deposited - settlementGiven;
                 
                 const totalPaidOutByMember = state.expenses.reduce((s, ex) => {
                     const payers = getExpensePayers(ex);
@@ -837,10 +838,7 @@
                     return s;
                 }, 0);
 
-                const settlementPaidTotal = state.settlementPayments.filter(sp => sp.payer === m.name).reduce((s, sp) => s + sp.amount, 0);
-                const settlementReceivedTotal = state.settlementPayments.filter(sp => sp.receiver === m.name).reduce((s, sp) => s + sp.amount, 0);
-
-                const netBalance = deposited - totalPaidOutByMember - settlementPaidTotal + settlementReceivedTotal;
+                const netBalance = netDeposited - totalPaidOutByMember;
                 const accordionId = `member-collapse-${idx}`;
 
                 let memberCatBreakdownHTML = '';
@@ -889,7 +887,7 @@
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 pt-3 border-t border-teal-100/60 text-xs font-medium text-slate-600">
-                        <div class="bg-white/60 p-2 rounded-lg border border-teal-50">Deposit: <strong class="text-teal-700 font-bold">৳${deposited.toLocaleString()}</strong></div>
+                        <div class="bg-white/60 p-2 rounded-lg border border-teal-50">Deposit (Net): <strong class="text-teal-700 font-bold">৳${netDeposited.toLocaleString()}</strong></div>
                         <div class="bg-white/60 p-2 rounded-lg border border-teal-50">Paid Out: <strong class="text-cyan-700 font-bold">৳${totalPaidOutByMember.toFixed(2)}</strong></div>
                     </div>
 
@@ -976,7 +974,7 @@
                 let memberDebts = {}; 
                 state.members.forEach(m => { memberDebts[m.name] = {}; });
 
-                state.expenses.filter(Boolean).forEach(ex => {
+                state.expenses.forEach(ex => {
                     let payer = ex.paidBy;
                     let payers = getExpensePayers(ex);
                     let amount = ex.amount;
@@ -991,7 +989,7 @@
                     });
                 });
 
-                state.settlementPayments.filter(Boolean).forEach(sp => {
+                state.settlementPayments.forEach(sp => {
                     if (memberDebts[sp.payer] && memberDebts[sp.payer][sp.receiver]) {
                         memberDebts[sp.payer][sp.receiver] -= sp.amount;
                         if (memberDebts[sp.payer][sp.receiver] <= 0) {
