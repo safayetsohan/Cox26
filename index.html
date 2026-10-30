@@ -286,6 +286,13 @@
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Amount (৳)</label>
                         <input type="number" id="settleAmount" required min="1" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-slate-50/50 transition" placeholder="e.g. 500">
                     </div>
+                    
+                    <!-- Non Count Checkbox Option -->
+                    <div class="flex items-center gap-2 pt-1">
+                        <input type="checkbox" id="settleNonCount" class="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 cursor-pointer">
+                        <label for="settleNonCount" class="text-xs font-bold text-slate-700 cursor-pointer select-none">Non Count</label>
+                    </div>
+
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 rounded-xl font-semibold transition text-sm shadow-md shadow-emerald-100">Add Settlement Payment</button>
                 </form>
             </div>
@@ -546,16 +553,18 @@
             const payer = document.getElementById('settlePayer').value;
             const receiver = document.getElementById('settleReceiver').value;
             const amount = parseFloat(document.getElementById('settleAmount').value);
+            const nonCount = document.getElementById('settleNonCount').checked;
 
             if (payer && receiver && amount > 0) {
                 if (payer === receiver) {
                     alert('Payer and Receiver cannot be the same person!');
                     return;
                 }
-                state.settlementPayments.push({ payer, receiver, amount });
+                state.settlementPayments.push({ payer, receiver, amount, nonCount });
                 document.getElementById('settleAmount').value = '';
                 document.getElementById('settlePayer').value = '';
                 document.getElementById('settleReceiver').value = '';
+                document.getElementById('settleNonCount').checked = false;
                 saveData();
                 alert('Settlement payment successfully recorded!');
             } else {
@@ -650,8 +659,10 @@
 
             let deposited = state.funds.filter(f => f.member === memberName).reduce((s, f) => s + f.amount, 0);
             state.settlementPayments.forEach(sp => {
-                if (sp.payer === memberName) deposited += sp.amount;
-                if (sp.receiver === memberName) deposited -= sp.amount;
+                if (!sp.nonCount) {
+                    if (sp.payer === memberName) deposited += sp.amount;
+                    if (sp.receiver === memberName) deposited -= sp.amount;
+                }
             });
             
             const totalPaidOutByMember = state.expenses.reduce((s, ex) => {
@@ -796,8 +807,10 @@
             state.members.forEach((m, idx) => {
                 let deposited = state.funds.filter(f => f.member === m.name).reduce((s, f) => s + f.amount, 0);
                 state.settlementPayments.forEach(sp => {
-                    if (sp.payer === m.name) deposited += sp.amount;
-                    if (sp.receiver === m.name) deposited -= sp.amount;
+                    if (!sp.nonCount) {
+                        if (sp.payer === m.name) deposited += sp.amount;
+                        if (sp.receiver === m.name) deposited -= sp.amount;
+                    }
                 });
                 
                 const totalPaidOutByMember = state.expenses.reduce((s, ex) => {
@@ -926,9 +939,10 @@
                 settlementHistoryView.innerHTML = '<p class="text-slate-400 text-sm">No settlement payments recorded yet.</p>';
             } else {
                 state.settlementPayments.forEach((sp, idx) => {
+                    let nonCountBadge = sp.nonCount ? `<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">Non Count</span>` : '';
                     settlementHistoryView.innerHTML += `
                         <div class="p-3 bg-slate-50 rounded-xl flex justify-between items-center border border-slate-100 text-xs">
-                            <div><strong class="text-teal-700">${sp.payer}</strong> paid <strong class="text-emerald-600">৳${sp.amount}</strong> to <strong class="text-teal-700">${sp.receiver}</strong></div>
+                            <div><strong class="text-teal-700">${sp.payer}</strong> paid <strong class="text-emerald-600">৳${sp.amount}</strong> to <strong class="text-teal-700">${sp.receiver}</strong> ${nonCountBadge}</div>
                             ${isAdmin ? `<button onclick="deleteSettlementPayment(${idx})" class="text-rose-500 hover:text-rose-700 transition p-1"><i class="fa-solid fa-trash"></i></button>` : ''}
                         </div>
                     `;
@@ -967,13 +981,15 @@
                 });
 
                 state.settlementPayments.forEach(sp => {
-                    let key = `${sp.payer}->${sp.receiver}`;
-                    let reverseKey = `${sp.receiver}->${sp.payer}`;
+                    if (!sp.nonCount) {
+                        let key = `${sp.payer}->${sp.receiver}`;
+                        let reverseKey = `${sp.receiver}->${sp.payer}`;
 
-                    if (netPairDebts[key] !== undefined) {
-                        netPairDebts[key] -= sp.amount;
-                    } else if (netPairDebts[reverseKey] !== undefined) {
-                        netPairDebts[reverseKey] += sp.amount;
+                        if (netPairDebts[key] !== undefined) {
+                            netPairDebts[key] -= sp.amount;
+                        } else if (netPairDebts[reverseKey] !== undefined) {
+                            netPairDebts[reverseKey] += sp.amount;
+                        }
                     }
                 });
 
