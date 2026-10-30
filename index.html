@@ -285,14 +285,12 @@
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Amount (৳)</label>
                         <input type="number" id="settleAmount" required min="1" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm bg-slate-50/50 transition" placeholder="e.g. 500">
+                        <!-- Non Count Checkbox Added Here -->
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="checkbox" id="settleNonCount" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4">
+                            <label for="settleNonCount" class="text-xs font-semibold text-slate-600 cursor-pointer">non count</label>
+                        </div>
                     </div>
-                    
-                    <!-- Non Count Checkbox Option -->
-                    <div class="flex items-center gap-2 pt-1">
-                        <input type="checkbox" id="settleNonCount" class="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 cursor-pointer">
-                        <label for="settleNonCount" class="text-xs font-bold text-slate-700 cursor-pointer select-none">Non Count</label>
-                    </div>
-
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 rounded-xl font-semibold transition text-sm shadow-md shadow-emerald-100">Add Settlement Payment</button>
                 </form>
             </div>
@@ -939,7 +937,7 @@
                 settlementHistoryView.innerHTML = '<p class="text-slate-400 text-sm">No settlement payments recorded yet.</p>';
             } else {
                 state.settlementPayments.forEach((sp, idx) => {
-                    let nonCountBadge = sp.nonCount ? `<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">Non Count</span>` : '';
+                    const nonCountBadge = sp.nonCount ? '<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">Non-Count</span>' : '';
                     settlementHistoryView.innerHTML += `
                         <div class="p-3 bg-slate-50 rounded-xl flex justify-between items-center border border-slate-100 text-xs">
                             <div><strong class="text-teal-700">${sp.payer}</strong> paid <strong class="text-emerald-600">৳${sp.amount}</strong> to <strong class="text-teal-700">${sp.receiver}</strong> ${nonCountBadge}</div>
@@ -981,15 +979,13 @@
                 });
 
                 state.settlementPayments.forEach(sp => {
-                    if (!sp.nonCount) {
-                        let key = `${sp.payer}->${sp.receiver}`;
-                        let reverseKey = `${sp.receiver}->${sp.payer}`;
+                    let key = `${sp.payer}->${sp.receiver}`;
+                    let reverseKey = `${sp.receiver}->${sp.payer}`;
 
-                        if (netPairDebts[key] !== undefined) {
-                            netPairDebts[key] -= sp.amount;
-                        } else if (netPairDebts[reverseKey] !== undefined) {
-                            netPairDebts[reverseKey] += sp.amount;
-                        }
+                    if (netPairDebts[key] !== undefined) {
+                        netPairDebts[key] -= sp.amount;
+                    } else if (netPairDebts[reverseKey] !== undefined) {
+                        netPairDebts[reverseKey] += sp.amount;
                     }
                 });
 
